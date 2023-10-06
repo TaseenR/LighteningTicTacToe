@@ -1,0 +1,7 @@
+{
+  "name": "com.domain.app.tictactoe",
+  "description": "tictactoe",
+  "dependencies": {
+    "@lightningjs/sdk": "^5.4.1"
+  }
+}
