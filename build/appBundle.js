@@ -3,7 +3,7 @@
  * SDK version: 5.4.1
  * CLI version: 2.12.0
  *
- * Generated: Fri, 06 Oct 2023 15:51:28 GMT
+ * Generated: Mon, 09 Oct 2023 15:36:33 GMT
  */
 
 var APP_com_domain_app_tictactoe = (function () {
@@ -2670,7 +2670,7 @@ var APP_com_domain_app_tictactoe = (function () {
       proxyUrl = ensureUrlWithProtocol(config.proxyUrl);
     }
   };
-  var Utils = {
+  var Utils$1 = {
     asset(relPath) {
       return basePath + relPath;
     },
@@ -2810,7 +2810,7 @@ var APP_com_domain_app_tictactoe = (function () {
         if (typeof translationsObj === 'object') {
           resolve();
         } else if (typeof translationsObj === 'string') {
-          const url = Utils.asset(translationsObj);
+          const url = Utils$1.asset(translationsObj);
           fetchJson(url).then(json => {
             // save the translations for this language (to prevent loading twice)
             translations[language] = json;
@@ -3338,7 +3338,7 @@ var APP_com_domain_app_tictactoe = (function () {
         }
       }
       loadLanguage(config) {
-        let file = Utils.asset('translations.json');
+        let file = Utils$1.asset('translations.json');
         let language = config;
         if (typeof language === 'object') {
           language = config.language || null;
@@ -3347,7 +3347,7 @@ var APP_com_domain_app_tictactoe = (function () {
         return initLanguage(file, language);
       }
       loadColors(config) {
-        let file = Utils.asset('colors.json');
+        let file = Utils$1.asset('colors.json');
         if (config && (typeof config === 'string' || typeof config === 'object')) {
           file = config;
         }
@@ -6835,6 +6835,332 @@ var APP_com_domain_app_tictactoe = (function () {
     _getFocused() {
       return this.tag("Menu");
     }
+    _handleEnter() {
+      this.signal("select", {
+        item: this.tag("Menu").activeItem
+      });
+    }
+  }
+
+  const getMatchingPatterns = (regex, tiles) => {
+    const patterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    return patterns.reduce((sets, pattern) => {
+      const normalized = pattern.map(tileIndex => {
+        return tiles[tileIndex];
+      }).join("");
+      if (regex.test(normalized)) {
+        sets.push(pattern);
+      }
+      return sets;
+    }, []);
+  };
+  const getFutureWinningIndex = tiles => {
+    let index = -1;
+    const player = /(ex{2}|x{2}e|xex)/i;
+    const ai = /(e0{2}|0{2}e|0e0)/i;
+
+    // since we're testing for ai we give prio to letting ourself win
+    // instead of blocking the potential win for the player
+    const set = [...getMatchingPatterns(player, tiles), ...getMatchingPatterns(ai, tiles)];
+    if (set.length) {
+      set.pop().forEach(tileIndex => {
+        if (tiles[tileIndex] === 'e') {
+          index = tileIndex;
+        }
+      });
+    }
+    return index;
+  };
+  var Utils = {
+    AI: tiles => {
+      const mostLogicalIndex = getFutureWinningIndex(tiles);
+      if (mostLogicalIndex !== -1) {
+        return mostLogicalIndex;
+      } else {
+        const opt = tiles.map((el, idx) => {
+          if (el === "e") return idx;
+        }).filter(Boolean);
+
+        // test for tie
+        if (!opt.length) {
+          return -1;
+        }
+        return opt[~~(Math.random() * opt.length)];
+      }
+    },
+    getWinner: tiles => {
+      const regex = /(x{3}|0{3})/i;
+      const set = getMatchingPatterns(regex, tiles);
+      if (set) {
+        return tiles[set.join("")[0]];
+      }
+      return false;
+    }
+  };
+
+  class Game extends Lightning$1.Component {
+    static _template() {
+      return {
+        Game: {
+          PlayerPosition: {
+            rect: true,
+            w: 250,
+            h: 250,
+            color: 0x40ffffff,
+            x: 425,
+            y: 125
+          },
+          Field: {
+            x: 400,
+            y: 100,
+            children: [{
+              rect: true,
+              w: 1,
+              h: 5,
+              y: 300
+            }, {
+              rect: true,
+              w: 1,
+              h: 5,
+              y: 600
+            }, {
+              rect: true,
+              h: 1,
+              w: 5,
+              x: 300,
+              y: 0
+            }, {
+              rect: true,
+              h: 1,
+              w: 5,
+              x: 600,
+              y: 0
+            }]
+          },
+          Markers: {
+            x: 400,
+            y: 100
+          },
+          ScoreBoard: {
+            x: 100,
+            y: 170,
+            Player: {
+              text: {
+                text: 'Player 0',
+                fontSize: 29,
+                fontFace: 'Pixel'
+              }
+            },
+            Ai: {
+              y: 40,
+              text: {
+                text: 'Computer 0',
+                fontSize: 29,
+                fontFace: 'Pixel'
+              }
+            }
+          }
+        },
+        Notification: {
+          x: 100,
+          y: 170,
+          text: {
+            fontSize: 70,
+            fontFace: 'Pixel'
+          },
+          alpha: 0
+        }
+      };
+    }
+    _construct() {
+      this._index = 0;
+      this._aiScore = 0;
+      this._playerScore = 0;
+    }
+    _active() {
+      this._reset();
+      this.tag("Field").children.forEach((el, idx) => {
+        el.setSmooth(idx < 2 ? "w" : "h", 900, {
+          duration: 0.7,
+          delay: idx * 0.15
+        });
+      });
+    }
+    _reset() {
+      this._tiles = ['e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e'];
+      this.render(this._tiles);
+      this._setState("");
+    }
+    render(tiles) {
+      this.tag("Markers").children = tiles.map((el, idx) => {
+        return {
+          x: idx % 3 * 300 + 110,
+          y: ~~(idx / 3) * 300 + 90,
+          text: {
+            text: el === "e" ? '' : "".concat(el),
+            fontFace: 'Pixel',
+            fontSize: 100
+          }
+        };
+      });
+    }
+    _handleUp() {
+      let idx = this._index;
+      if (idx - 3 >= 0) {
+        this._setIndex(idx - 3);
+      }
+    }
+    _handleDown() {
+      let idx = this._index;
+      if (idx + 3 <= this._tiles.length - 1) {
+        this._setIndex(idx + 3);
+      }
+    }
+    _handleLeft() {
+      let idx = this._index;
+      if (idx % 3) {
+        this._setIndex(idx - 1);
+      }
+    }
+    _handleRight() {
+      const newIndex = this._index + 1;
+      if (newIndex % 3) {
+        this._setIndex(newIndex);
+      }
+    }
+    _setIndex(idx) {
+      this.tag("PlayerPosition").patch({
+        smooth: {
+          x: idx % 3 * 300 + 425,
+          y: ~~(idx / 3) * 300 + 125
+        }
+      });
+      this._index = idx;
+    }
+    _handleEnter() {
+      if (this._tiles[this._index] === "e") {
+        if (this.place(this._index, "X")) {
+          this._setState("Computer");
+        }
+      }
+    }
+    place(index, marker) {
+      this._tiles[index] = marker;
+      this.render(this._tiles);
+      const winner = Utils.getWinner(this._tiles);
+      if (winner) {
+        this._setState("End.Winner", [{
+          winner
+        }]);
+        return false;
+      }
+      return true;
+    }
+    static _states() {
+      return [class Computer extends this {
+        $enter() {
+          const position = Utils.AI(this._tiles);
+          if (position === -1) {
+            this._setState("End.Tie");
+            return false;
+          }
+          setTimeout(() => {
+            if (this.place(position, "0")) {
+              this._setState("");
+            }
+          }, ~~(Math.random() * 1200) + 200);
+          this.tag("PlayerPosition").setSmooth("alpha", 0);
+        }
+
+        // make sure we don't handle
+        // any keypresses when the computer is playing
+        _captureKey(_ref) {
+        }
+        $exit() {
+          this.tag("PlayerPosition").setSmooth("alpha", 1);
+        }
+      }, class End extends this {
+        _handleEnter() {
+          this._reset();
+        }
+        $exit() {
+          this.patch({
+            Game: {
+              smooth: {
+                alpha: 1
+              }
+            },
+            Notification: {
+              text: {
+                text: ''
+              },
+              smooth: {
+                alpha: 0
+              }
+            }
+          });
+        }
+        static _states() {
+          return [class Winner extends this {
+            $enter(args, _ref2) {
+              let {
+                winner
+              } = _ref2;
+              if (winner === 'X') {
+                this._playerScore += 1;
+              } else {
+                this._aiScore += 1;
+              }
+              this.patch({
+                Game: {
+                  smooth: {
+                    alpha: 0
+                  },
+                  ScoreBoard: {
+                    Player: {
+                      text: {
+                        text: "Player ".concat(this._playerScore)
+                      }
+                    },
+                    Ai: {
+                      text: {
+                        text: "Computer ".concat(this._aiScore)
+                      }
+                    }
+                  }
+                },
+                Notification: {
+                  text: {
+                    text: "".concat(winner === 'X' ? "Player" : "Computer", " wins (press enter to continue)")
+                  },
+                  smooth: {
+                    alpha: 1
+                  }
+                }
+              });
+            }
+          }, class Tie extends this {
+            $enter() {
+              this.patch({
+                Game: {
+                  smooth: {
+                    alpha: 0
+                  }
+                },
+                Notification: {
+                  text: {
+                    text: "Tie :( (press enter to try again)"
+                  },
+                  smooth: {
+                    alpha: 1
+                  }
+                }
+              });
+            }
+          }];
+        }
+      }];
+    }
   }
 
   class App extends Lightning$1.Component {
@@ -6844,14 +7170,14 @@ var APP_com_domain_app_tictactoe = (function () {
     static getFonts() {
       return [{
         family: 'pixel',
-        url: Utils.asset('fonts/Roboto-Regular.ttf'),
+        url: Utils$1.asset('fonts/Roboto-Regular.ttf'),
         descriptor: {}
       }];
     }
     static _template() {
       return {
         rect: true,
-        color: 0xff808080,
+        color: 0xff000000,
         w: 1920,
         h: 1080,
         Logo: {
@@ -6871,7 +7197,13 @@ var APP_com_domain_app_tictactoe = (function () {
         },
         Main: {
           type: Main,
-          signals: {},
+          signals: {
+            select: "menuSelect"
+          },
+          alpha: 0
+        },
+        Game: {
+          type: Game,
           alpha: 0
         }
       };
@@ -6904,8 +7236,29 @@ var APP_com_domain_app_tictactoe = (function () {
             }
           });
         }
+        menuSelect(_ref) {
+          let {
+            item
+          } = _ref;
+          if (this._hasMethod(item.action)) {
+            return this[item.action]();
+          }
+        }
+        start() {
+          this._setState("Game");
+        }
         _getFocused() {
           return this.tag("Main");
+        }
+      }, class Game extends this {
+        $enter() {
+          this.tag("Game").setSmooth("alpha", 1);
+        }
+        $exit() {
+          this.tag("Game").setSmooth("alpha", 0);
+        }
+        _getFocused() {
+          return this.tag("Game");
         }
       }];
     }

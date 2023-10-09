@@ -20,4 +20,8 @@ export default class Main extends Lightning.Component {
         return this.tag("Menu");
     }
 
+    _handleEnter(){
+        this.signal("select", {item: this.tag("Menu").activeItem});
+    }
+
 }
