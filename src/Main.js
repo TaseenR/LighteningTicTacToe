@@ -11,6 +11,7 @@ export default class Main extends Lightning.Component {
                     {label:'START NEW GAME',action:'start'},
                     {label:'CONTINUE',action:'continue'},
                     {label:'ABOUT',action:'about'},
+                    {label: 'CHANGE', action: 'change'},
                     {label:'EXIT', action:'exit'}
                 ]
             }
@@ -23,5 +24,11 @@ export default class Main extends Lightning.Component {
     _handleEnter(){
         this.signal("select", {item: this.tag("Menu").activeItem});
     }
+
+    changeFont() {
+
+        this.tag('Menu').changeFont();
+    
+      }
 
 }

@@ -22,4 +22,14 @@ export default class Item extends Lightning.Component{
     get action(){
         return this._action;
     }
+
+    _setup(){
+        this._fonts = ['pixel', 'pixelify', 'teko'];
+    }
+
+    changeFont() {
+
+        this.patch({ text: { fontFace: this._fonts[localStorage.getItem('fontval')] } })
+    
+      }
 }

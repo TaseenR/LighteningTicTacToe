@@ -2,12 +2,16 @@ import { Lightning } from "@lightningjs/sdk";
 import Utils from "./GameUtils";
 
 export default class Game extends Lightning.Component {
+
     static _template() {
         return {
         Game:{
             PlayerPosition:{
                 rect: true, w: 250, h: 250, color: 0x40ffffff,
-                x: 425, y: 125
+                x: 550, y: 250,
+                mount: 0.5,
+                pivot: 0.5,
+                
             },
             Field:{
                 x: 400, y: 100,
@@ -27,6 +31,10 @@ export default class Game extends Lightning.Component {
                 },
                 Ai:{ y: 40,
                     text:{text:'Computer 0', fontSize:29, fontFace:'Pixel'}
+                },
+                Back:{
+                    y: 80,
+                    text:{text: "Click backspace \nto leave", fontFace:"Pixel",fontSize:29}
                 }
             }
         },
@@ -47,6 +55,7 @@ export default class Game extends Lightning.Component {
 
         this.tag("Field").children.forEach((el,idx)=>{
             el.setSmooth(idx<2?"w":"h",900,{duration:0.7, delay:idx*0.15})
+            
         })
     }
 
@@ -100,8 +109,8 @@ export default class Game extends Lightning.Component {
     _setIndex(idx){
         this.tag("PlayerPosition").patch({
             smooth:{
-                x: idx%3*300 + 425,
-                y: ~~(idx/3)*300 + 125
+                x: idx%3*300 + 550,
+                y: ~~(idx/3)*300 + 250,
             }
         });
         this._index = idx;
@@ -113,6 +122,44 @@ export default class Game extends Lightning.Component {
                 this._setState("Computer");
             }
         }
+    }
+
+
+    _setup(){
+        this._fonts = ['pixel', 'pixelify', 'teko'];
+    }
+
+    changeFont() {
+
+        this.tag('Text').patch({ text: { fontFace: this._fonts[localStorage.getItem('fontval')] } })
+    
+      }
+
+    _handleBack(){
+        this.signal('back');
+    }
+
+    _init(){
+        const pulsePlayer = this.tag("PlayerPosition").animation({
+            duration: 1,
+            repeat: -1,
+            actions: [
+                { p: 'w', v: { 0: 220, 0.25: 240, 0.5: 250, 0.75: 240, 1: 220 } },
+                { p: 'h', v: { 0: 220, 0.25: 240, 0.5: 250, 0.75: 240, 1: 220 } },
+            ]
+        })
+
+        const entergrid = this.tag("Field").animation({
+            duration: 1,
+            repeat: 0,
+            actions: [
+                {p: 'y',v: {0: 0, 0.2: 20, 0.4:40,0.6:60,0.8:80,0.9:90,1:100}} //100
+            ]
+        })
+
+        pulsePlayer.start();
+        entergrid.start();
+
     }
 
     place(index, marker){
